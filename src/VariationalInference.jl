@@ -12,17 +12,27 @@ __precompile__()
 # If you are not going to precompile your package, it's good practice to disable it:
 # __precompile__(false)
 
-module ExamplePackage
+module VariationalInference
 
 # The main module file is for outlining the structure of the package.
 # At the top of your package module, you should import your dependencies:
 
-using Compat
+# using Compat
+
+# Using Base modules.
+using Random
+# Load a plotting library.
+using Plots
+# Load the distributions library.
+using Distributions
+
+using StatsPlots
 
 # Then define your abstract types:
 
-abstract AbstractMyType
-abstract AbstractMyType2 <: AbstractMyType
+# abstract AbstractMyType
+# abstract AbstractMyType2 <: AbstractMyType
+abstract type InferenceAlgorithm end
 
 # Some people make sure all export statements are at the top of the main module as well
 # Only values which are exported enter the namespace, anything else must be
@@ -32,12 +42,16 @@ abstract AbstractMyType2 <: AbstractMyType
 # Note: You should try to keep exports to a minimum. Exports are the public API:
 # internal functionality should not be exported!
 
-export output_string, added_function
+export  InferenceAlgorithm,
+        fit,
+        get_elbo
+        
 
 # Now include the real code
 # Write your code in other files, otherwise the package outline gets muddled
 
-include("output_string.jl")
-include("my_new_file.jl")
+include("CAVI.jl")
+# include("output_string.jl")
+# include("my_new_file.jl")
 
 end # module
