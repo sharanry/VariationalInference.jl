@@ -95,4 +95,5 @@ function fit(alg::CAVI; max_iter=100, tol=1e-20, print_interval=50)
             print("ELBO ended with ll $elbo_val")
         end
     end    
+    elbo_values, m_history ,s2_history
 end
