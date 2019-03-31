@@ -1,33 +1,24 @@
 # Using Base modules.
 using Random
-# Load a plotting library.
-using Plots
 # Load the distributions library.
 using Distributions
 
-using StatsPlots
 
-
-mutable struct CAVI <: InferenceAlgorithm
-    # n_iters   ::  Int       # maximum number of iterations
+mutable struct UGMM_CAVI <: InferenceAlgorithm
     X # Data
     K::Int       # number of iterations
     N::Int
     sigma2
-    # tol :: T    # tolerence values for early convergence criteria
     m
     phi
     s2
-    # proposals ::  Dict{Symbol,Any}  # Proposals for paramters
-    # space     ::  Set{T}    # sampling space, emtpy means all
 end
 
-function CAVI(X, num_components::Int, n_samples::Int, sigma2=1)
+function UGMM_CAVI(X, num_components::Int, n_samples::Int, sigma2=1)
     K=num_components
     N=n_samples
-    # global sigma2 = 1
     rng = RandomDevice()
-    phi = rand(Dirichlet(K*N, (rand(rng, Float32,(1))*rand(rng, 1:9))[1]),(3));
+    phi = rand(Dirichlet(K*N, (rand(rng, Float32,(1))*rand(rng, 1:9))[1]),(K));
     m = rand(rng,floor(minimum(X)):floor(maximum(X)), (1,K))
     m += maximum(X)*rand(rng, Float32, (1,K))
     s2 = rand(rng, Float32, (1, K))
@@ -35,43 +26,42 @@ function CAVI(X, num_components::Int, n_samples::Int, sigma2=1)
     println(m)
     print("\nInit s2\n")
     println(s2)
-    CAVI(X, num_components, n_samples, sigma2, m, phi, s2)
+    UGMM_CAVI(X, num_components, n_samples, sigma2, m, phi, s2)
        
 end
 
-function get_elbo(alg::CAVI)
+function get_elbo(alg::UGMM_CAVI)
     t1 = log.(alg.s2) - alg.m./(alg.sigma2)
     t1 = sum(t1)
-    t2 = -0.5.*((alg.X).^2 * ones(1, 3) + ones(3000, 1)*((alg.s2)+(alg.m).^2 ))
-    t2 .+= (alg.X)*(alg.m)
+    t2 = -0.5.*(reshape(alg.X, (alg.N*alg.K, 1)).^2 * ones(1, alg.K) + ones(alg.N*alg.K, 1)*((alg.s2)+(alg.m).^2 ))
+    t2 .+= reshape(alg.X, (alg.N*alg.K, 1))*(alg.m)
     t2 .-= log.(alg.phi)
     t2 .+= alg.phi
     t2 = sum(t2)
     return t1 + t2
 end
 
-function _update_phi(alg::CAVI)
-    t1 = alg.X*alg.m
+function _update_phi(alg::UGMM_CAVI)
+    t1 = reshape(alg.X, (alg.N*alg.K, 1))*alg.m
     t2 = -(0.5*alg.m.^2 + 0.5*alg.s2)
     exponent = t1 .+ t2
     phi = exp.(exponent)
     alg.phi = phi ./ sum(phi,dims=2)
 end
-function _update_mu(alg::CAVI)
-    alg.m = sum((alg.phi.*alg.X),dims=1) .* (1 ./alg.sigma2 .+ sum(alg.phi,dims=1)).^(-1)
+function _update_mu(alg::UGMM_CAVI)
+    alg.m = sum((alg.phi.*reshape(alg.X, (alg.N*alg.K, 1))),dims=1) .* (1 ./alg.sigma2 .+ sum(alg.phi,dims=1)).^(-1)
     @assert size(alg.m)[2] == alg.K
     #print(self.m)
     alg.s2 = (1 ./alg.sigma2 .+ sum(alg.phi,dims=1)).^(-1)
     @assert size(alg.s2)[2] == alg.K
 end
 
-function _cavi_step(alg::CAVI)
+function _cavi_step(alg::UGMM_CAVI)
     _update_phi(alg)
     _update_mu(alg)
 end
 
-function fit(alg::CAVI; max_iter=100, tol=1e-20, print_interval=50)
-    # _init(X=X, num_components=num_components, n_samples=n_samples, sigma2=sigma2)
+function fit(alg::UGMM_CAVI; max_iter=100, tol=1e-20, print_interval=50)
     elbo_values = [get_elbo(alg)]
     m_history = [alg.m]
     s2_history = [alg.s2]
